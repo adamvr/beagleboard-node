@@ -15,15 +15,13 @@ app.get '/', (req, res) ->
 
 osco = (sio.listen app).of '/osco'
 
-state =
-    data: [i, Math.sin i] for i in [0..Math.PI * 2] by Math.PI/16
-    curIndex: 0
-
 setInterval () ->
-    osco.emit 'data',
-        index: state.curIndex
-        data: state.data[state.curIndex]
-    state.curIndex = (state.curIndex + 1) % state.data.length
+    min = 0
+    max = 255
+    res = []
+    for i in [0..512]
+        res.push [i, Math.floor((max-min) * Math.random() + min)]
+    osco.emit 'data', val: res
 , 250 
 
 
