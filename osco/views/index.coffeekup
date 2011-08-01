@@ -4,52 +4,59 @@ html ->
     head ->
         title "#{@title} | Osco"
         script src: '/javascript/jquery.js'
-        script src: '/javascript/jquery.flot.js'
+        #script src: '/javascript/jquery.flot.js'
+        script src: '/javascript/processing.js'
         script src: '/socket.io/socket.io.js'
         coffeescript ->
-            fields = ['Periods', 'Amplitude', 'Frequency', 'Phase']
-            sine = (periods, amp, freq, phase) ->
-                res = []
-                for i in [0..periods * 2 * Math.PI] by Math.PI / 32 
-                    res.push [i, amp * (Math.sin i*freq + phase)]
-                return res
+            graphDataSize = 50
+            graphData = new Array graphDataSize
+
+            sketchProc = (p) ->
+                p.frameRate 10
+                p.size 600, 250
+
+                rangeY = 256
+                centerY = p.height / 2
+                scaleY = p.height / rangeY
+                stepX = p.width / (graphDataSize - 1)
+
+                p.draw = () ->
+                    p.background 224
+                    p.stroke 25
+                    p.strokeWeight 1
+                    p.line 0, centerY, p.width, centerY
+
+                    p.stroke 0
+                    p.strokeWeight 3
+                    lastX = 0
+                    nextX = 0
+                    for point in graphData
+                        nextY = centerY - (graphData[point] * scaleY)
+                        if point != 0
+                            p.line lastX, lastY, nextX, nextY
+                            lastX += stepX
+                        nextX += stepX
+                        lastY = nextY
+
 
 
             $().ready ->
-                class Lolk
-                    constructor: () ->
-                        @graph = [
-                            label: 'Test'
-                            data: []
-                        ]
-                        @opts = 
-                            xaxis:
-                                min: 0
-                                max: 512 
-                            yaxis:
-                                min: 0
-                                max: 255
+                canvas = $('#processing')[0]
+                processing = new Processing canvas, sketchProc
 
+                socket = io.connect '/osco'
+                socket.on 'data', (data) =>
+                    mData = window.atob data
+                    alert mData
+                    for i in [0...graphDataSize]
+                        b = mData.charCodeAt i
+                        if b >= 128
+                            b = b - 256
 
-                        @plot = $.plot ($ '#placeholder'), @graph, @opts
-
-                        @socket = io.connect '/osco'
-                        @socket.on 'data', (data) =>
-                            @graph[0].data = data.val
-                            @plot.setData @graph
-                            @plot.draw()
-                lol = new Lolk()
+                        graphData[i] = b
 
 
     body ->
         h1 @title
-        div id: 'placeholder', style: 'width:100%;height:100%;'
-        table ->
-            for field in @fields
-                tr ->
-                    td ->
-                        label field 
-                    td ->
-                        input type: 'text', id: field.toLowerCase(), value: '1'
-        button id: 'draw', -> 'Draw'
+        canvas id: 'processing'
 

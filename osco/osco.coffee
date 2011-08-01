@@ -1,6 +1,7 @@
 express = require 'express'
 util = require 'util'
 sio = require 'socket.io'
+fs = require 'child_process'
 
 app = express.createServer()
 app.use express.logger()
@@ -15,14 +16,12 @@ app.get '/', (req, res) ->
 
 osco = (sio.listen app).of '/osco'
 
-setInterval () ->
-    min = 0
-    max = 255
-    res = []
-    for i in [0..512]
-        res.push [i, Math.floor((max-min) * Math.random() + min)]
-    osco.emit 'data', val: res
-, 250 
-
+osco.on 'connection', (socket) ->
+    random = fs.spawn 'cat', ['/dev/random']
+    random.stdout.setEncoding 'base64'
+    random.stdout.on 'data', (data) ->
+        nData = data[0...50]
+        util.log nData
+        osco.emit 'data', nData
 
 app.listen 3000
