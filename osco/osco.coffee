@@ -15,18 +15,29 @@ app.get '/', (req, res) ->
     res.render 'index', title: 'Test'
 
 manager = sio.listen app
-manager.set 'log level', 1
+manager.set 'log level', 2
 
-osco = manager.of '/osco'
-cdata = i for i in [0...50]
+random = manager.of '/random'
+linear = manager.of '/linear'
+cdata = [-25...25]
 
-osco.on 'connection', (socket) ->
-    random = fs.spawn 'cat', ['/dev/urandom']
-    random.stdout.on 'data', (data) ->
+random.on 'connection', (socket) ->
+    proc = fs.spawn 'cat', ['/dev/urandom']
+    proc.stdout.on 'data', (data) ->
         nData = []
         for i in [0...50]
-            nData.push data[i]
-        util.log util.inspect nData
-        osco.emit 'data', nData
+            nData[i] = data[i]
+        random.emit 'data', nData
+    socket.on 'disconnect', () ->
+        proc.kill()
+    
+
+linear.on 'connection', (socket) ->
+    interval = setInterval () ->
+        linear.emit 'data', cdata
+    , 100
+
+    socket.on 'disconnect', () ->
+        clearInterval interval
 
 app.listen 3000

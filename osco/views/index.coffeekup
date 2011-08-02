@@ -9,46 +9,64 @@ html ->
         script src: '/socket.io/socket.io.js'
         coffeescript ->
             graphDataSize = 50
-            graphData = new Array graphDataSize
+            randomData = new Array graphDataSize
+            linearData = new Array graphDataSize
 
-            sketchProc = (p) ->
-                p.frameRate 10
-                p.size 600, 250
+            class SocketPlotter
+                # Other options later - plot size etc.
+                constructor: (handle, socket, dataSize, dims) ->
+                    @data = new Array dataSize
+                    @socket = io.connect socket
+                    @socket.on 'data', (data) =>
+                        for i in [0...dataSize]
+                            @data[i] = if data[i] >= 128 then data[i] - 256 else data[i] 
 
-                rangeY = 256
-                centerY = p.height / 2
-                scaleY = p.height / rangeY
-                stepX = p.width / (graphDataSize - 1)
-                lastY = centerY
 
-                p.draw = () ->
-                    p.background 224
-                    p.stroke 25
-                    p.strokeWeight 1
-                    p.line 0, centerY, p.width, centerY
+                    @opts = 
+                        dimensions:
+                            width: dims.width
+                            height: dims.height
+                        rangeY: 256
+                        centerY: dims.height / 2
+                        scaleY: dims.height / 256
+                        stepX: dims.width / (dataSize - 1)
+                        lastY: dims.height / 2 
+                        frameRate: 10
 
-                    p.stroke 0
-                    p.strokeWeight 3
-                    lastX = 0
-                    nextX = lastX + stepX
-                    for point in graphData
-                        nextY = centerY - (point * scaleY)
-                        p.line lastX, lastY, nextX, nextY
-                        lastX += stepX
-                        nextX += stepX
-                        lastY = nextY
-                    return
+                    @processing = new Processing handle, @sketch
+
+
+                sketch: (p) =>
+                    p.frameRate @opts.frameRate
+                    p.size @opts.dimensions.width, @opts.dimensions.height
+
+                    p.draw = () =>
+                        p.background 224
+                        p.stroke 25
+                        p.strokeWeight 1
+                        p.line 0, @opts.centerY, p.width, @opts.centerY
+
+                        p.stroke 0
+                        p.strokeWeight 3
+                        lastX = 0
+                        nextX = lastX + @opts.stepX
+                        for point in @data
+                            nextY = @opts.centerY - (point * @opts.scaleY)
+                            p.line lastX, @opts.lastY, nextX, nextY
+                            lastX += @opts.stepX
+                            nextX += @opts.stepX
+                            @opts.lastY = nextY
+                        return
+
 
             $().ready ->
-                canvas = $('#processing')[0]
-                processing = new Processing canvas, sketchProc
-
-                socket = io.connect '/osco'
-                socket.on 'data', (data) =>
-                    for i in [0...graphDataSize]
-                        graphData[i] = if data[i] >= 128 then data[i] - 256 else data[i] 
+                random = new SocketPlotter $('#random')[0], '/random', 50, height: 250, width: 600 
+                linear = new SocketPlotter $('#linear')[0], '/linear', 50, height: 250, width: 600
 
     body ->
         h1 @title
-        canvas id: 'processing'
+        div ->
+            canvas id: 'random'
+        div ->
+            canvas id: 'linear'
 
