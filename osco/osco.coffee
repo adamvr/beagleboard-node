@@ -14,14 +14,19 @@ app.set 'view options', layout: false
 app.get '/', (req, res) ->
     res.render 'index', title: 'Test'
 
-osco = (sio.listen app).of '/osco'
+manager = sio.listen app
+manager.set 'log level', 1
+
+osco = manager.of '/osco'
+cdata = i for i in [0...50]
 
 osco.on 'connection', (socket) ->
-    random = fs.spawn 'cat', ['/dev/random']
-    random.stdout.setEncoding 'base64'
+    random = fs.spawn 'cat', ['/dev/urandom']
     random.stdout.on 'data', (data) ->
-        nData = data[0...50]
-        util.log nData
+        nData = []
+        for i in [0...50]
+            nData.push data[i]
+        util.log util.inspect nData
         osco.emit 'data', nData
 
 app.listen 3000

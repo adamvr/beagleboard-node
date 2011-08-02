@@ -19,6 +19,7 @@ html ->
                 centerY = p.height / 2
                 scaleY = p.height / rangeY
                 stepX = p.width / (graphDataSize - 1)
+                lastY = centerY
 
                 p.draw = () ->
                     p.background 224
@@ -29,16 +30,14 @@ html ->
                     p.stroke 0
                     p.strokeWeight 3
                     lastX = 0
-                    nextX = 0
+                    nextX = lastX + stepX
                     for point in graphData
-                        nextY = centerY - (graphData[point] * scaleY)
-                        if point != 0
-                            p.line lastX, lastY, nextX, nextY
-                            lastX += stepX
+                        nextY = centerY - (point * scaleY)
+                        p.line lastX, lastY, nextX, nextY
+                        lastX += stepX
                         nextX += stepX
                         lastY = nextY
-
-
+                    return
 
             $().ready ->
                 canvas = $('#processing')[0]
@@ -46,15 +45,8 @@ html ->
 
                 socket = io.connect '/osco'
                 socket.on 'data', (data) =>
-                    mData = window.atob data
-                    alert mData
                     for i in [0...graphDataSize]
-                        b = mData.charCodeAt i
-                        if b >= 128
-                            b = b - 256
-
-                        graphData[i] = b
-
+                        graphData[i] = if data[i] >= 128 then data[i] - 256 else data[i] 
 
     body ->
         h1 @title
